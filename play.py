@@ -1,23 +1,45 @@
-import mysql.connector
-from datetime import datetime
-import pygame as pg
-from random import random, randint
 import time
+from random import random, randint
+
+import mysql.connector
+
+import pygame as pg
+
+
+def play(left, right, delay=.1, delay_v=.01, gain=1, gain_v=0, repeat=False, shuffle=False):
+
+    lset, rset = set(left), set(right)
+
+    mixers = left + right
+    try:
+        while repeat or len(mixers) > 0:
+            d = delay + random() * delay_v
+            g = gain + random() * gain_v
+            time.sleep(d)
+            c = pg.mixer.find_channel()
+            i = randint(0, len(mixers) - 1) if shuffle else 0
+            s = mixers.pop(i) if not repeat else mixers[i]
+            if s in lset:
+                left, right = g, 0.0
+            else:
+                left, right = 0.0, g
+
+            c.set_volume(left, right)
+            c.play(s)
+    except KeyboardInterrupt:
+        pass  # Stop playing
+
+    while pg.mixer.music.get_busy():
+        pass  # Loop until all sounds have finished playing
 
 
 def main():
-    tags = ["female", "20_29"]
-
-    wav_folder = "ogg/"
+    sounds_folder = "ogg/"
     db_name = "cocktail"
-    
-    with open("wav_info.txt", "r") as info:
-        lines = info.readlines()
-    
+
     cnx = mysql.connector.connect(user="root", 
         password="root", host="localhost", database=db_name)
     c = cnx.cursor()
-
 
     snippet_set_multiple = (
         "(SELECT name, sex, age "
@@ -31,45 +53,28 @@ def main():
         "where sex = %s "
         "order by rand() "
         "limit %s) "
-        "order by age")
+        "order by sex, age")
     
-    nmale, nfemale = 5000, 5000
+    nmale, nfemale = 300, 700
     c.execute(snippet_set_multiple, ("male", nmale, "female", nfemale))
-    #c.execute(snippet_set, ("20_29", 100,))
 
-    file_names = []
+    snippets = []
     for (name, sex, age) in c:
-        file_names.append((name, sex, age))
+        snippets.append((name, sex, age))
 
     c.close()
     cnx.close()
 
-    pg.mixer.init(frequency=16000)
+    frequency = 16000
+    channels = 1000
+    pg.mixer.init(frequency=frequency)
+    pg.mixer.set_num_channels(channels)
 
     mixers = []
-    for name, sex, age in file_names:
-        mixers.append((pg.mixer.Sound(wav_folder + name), sex, age))
+    for name, sex, age in snippets:
+        mixers.append(pg.mixer.Sound(sounds_folder + name))
 
-    pg.mixer.set_num_channels(1000)
-
-    while len(mixers) > 0:
-        delay = .01 + random() * .0010
-        time.sleep(delay)
-        c = pg.mixer.find_channel()
-        i = randint(0, len(mixers)-1)
-        i = 0
-        s, sex, age = mixers.pop(i)
-        if sex == "male":
-            left, right = 1.0, 0.0
-        else:
-            left, right = 0.0, 1.0
-
-        c.set_volume(left, right)
-        c.play(s)
-        print(len(mixers), sex, age)
-    
-    while pg.mixer.music.get_busy() == True:
-        continue  # Finish all sounds
+    play(mixers[:nfemale], mixers[nfemale:], shuffle=True)
 
 if __name__ == "__main__":
     main()
