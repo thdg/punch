@@ -26,6 +26,7 @@ def play(left, right, delay=.1, delay_v=.01, gain=1, gain_v=0, repeat=False, shu
 
             c.set_volume(left, right)
             c.play(s)
+            print(len(mixers))
     except KeyboardInterrupt:
         pass  # Stop playing
 
@@ -33,7 +34,7 @@ def play(left, right, delay=.1, delay_v=.01, gain=1, gain_v=0, repeat=False, shu
         pass  # Loop until all sounds have finished playing
 
 
-def main():
+def main(m, f):
     sounds_folder = "ogg/"
     db_name = "cocktail"
 
@@ -55,7 +56,7 @@ def main():
         "limit %s) "
         "order by sex, age")
     
-    nmale, nfemale = 300, 700
+    nmale, nfemale = m, f
     c.execute(snippet_set_multiple, ("male", nmale, "female", nfemale))
 
     snippets = []
@@ -77,5 +78,11 @@ def main():
     play(mixers[:nfemale], mixers[nfemale:], shuffle=True)
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser = argparse.ArgumentParser(description='Play clusters.')
+    parser.add_argument('male', type=int)
+    parser.add_argument('female', type=int)
+
+    args = parser.parse_args()
+    main(args.male, args.female)
 
